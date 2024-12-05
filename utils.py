@@ -21,12 +21,14 @@ from sewar import full_ref as fr
 import xlsxwriter
 import numpy as np
 
+import time
+
 seed = 2019
 np.random.seed = seed
 
 # Image size
-SIZE = 512
-INPUT_SHAPE = (SIZE, SIZE, 1)
+MODEL_SIZE = 512
+INPUT_SHAPE = (MODEL_SIZE, MODEL_SIZE, 1)
 BATCH_SIZE = 5
 
 ## LOSS FUNCTIONS
@@ -134,7 +136,7 @@ def get_test_data(t_path, RGB=False):
     test_ids = getIds(test_path)
     print(f'Number of test images: {len(test_ids)}')
 
-    test_gen = DataGen(test_ids, t_path, image_size=SIZE, batch_size=BATCH_SIZE, RGB=RGB)
+    test_gen = DataGen(test_ids, t_path, image_size=MODEL_SIZE, batch_size=BATCH_SIZE, RGB=RGB)
     return test_gen, test_ids
 
 def get_flops(model, model_inputs) -> float:
@@ -188,19 +190,19 @@ def get_flops(model, model_inputs) -> float:
 
 ## EXTERNAL TEST SET
 def get_unseen_data(t_path, random=False, RGB=False):
-
     ids = getIds(t_path)
     print(f'Number of test images: {len(ids)}')
     test_ids = []
     
-    ## Return 10 random images or the whole test set
+    # Store original image sizes
+    original_sizes = []
+    
     if (random):
         for i in range(0, 10):
             num = np.random.randint(0, len(ids))
             test_ids.append(ids[num])
     else:
-        for i in range(len(ids)):
-            test_ids.append(ids[i])
+        test_ids = ids.copy()
     
     test_data = []
     for id in tqdm(test_ids, desc='Loading test data'):
@@ -208,13 +210,15 @@ def get_unseen_data(t_path, random=False, RGB=False):
 
         if RGB:
             img = cv.imread(data)
-            if (img.shape != (SIZE, SIZE, 3)):
-                img = cv.resize(img, (SIZE, SIZE), interpolation=cv.INTER_LANCZOS4)
+            original_sizes.append(img.shape[:2])  # Store original height, width
+            if (img.shape[:2] != (MODEL_SIZE, MODEL_SIZE)):
+                img = cv.resize(img, (MODEL_SIZE, MODEL_SIZE), interpolation=cv.INTER_LANCZOS4)
         else:
             img = cv.imread(data, 0)
+            original_sizes.append(img.shape[:2])  # Store original height, width
+            if (img.shape != (MODEL_SIZE, MODEL_SIZE)):
+                img = cv.resize(img, (MODEL_SIZE, MODEL_SIZE), interpolation=cv.INTER_LANCZOS4)
             img = np.expand_dims(img, axis = -1)
-            if (img.shape != (SIZE, SIZE, 1)):
-                img = cv.resize(img, (SIZE, SIZE), interpolation=cv.INTER_LANCZOS4)
         
         img = preprocess_image(img)
         img = img_to_array(img)
@@ -225,15 +229,14 @@ def get_unseen_data(t_path, random=False, RGB=False):
     
     test_data = np.array(test_data)
     
-    return test_data, test_ids
-    
-def test_model(model, t_path, RGB=False, random=False):   
-    ## Testing the model's predictions
+    return test_data, test_ids, original_sizes
+
+def test_model(model, t_path, RGB=False, random=False):
     results = []
     times = []
-    data, ids = get_unseen_data(t_path, random=random, RGB=RGB)
-    import time
-    total_batches = (len(data) + BATCH_SIZE - 1) // BATCH_SIZE  # Adjusts for partial batches
+    data, ids, original_sizes = get_unseen_data(t_path, random=random, RGB=RGB)
+    
+    total_batches = (len(data) + BATCH_SIZE - 1) // BATCH_SIZE
     for i in tqdm(range(total_batches), desc='Performing inference'):
         batch_data = data[i*BATCH_SIZE:(i+1)*BATCH_SIZE]
         start = time.time()
@@ -249,9 +252,177 @@ def test_model(model, t_path, RGB=False, random=False):
     print(f'Std inference time for a batch of size {BATCH_SIZE}: {np.std(times) * 1000:.2f} ms')
 
     results = np.array(results)
-    results = np.reshape(results, (len(data), SIZE, SIZE, 1))
+    
+    # Resize results back to original sizes and optionally extract bone images
+    resized_suppression = []
+    bone_only = [] 
+    bone_boosted = []
+    
+    for idx, result in enumerate(results):
+        original_h, original_w = original_sizes[idx]
+        # 현재 처리중인 원본 이미지 가져오기
+        original_img = data[idx]
+        
+        # Reshape to remove batch dimension if necessary
+        result = result.reshape(MODEL_SIZE, MODEL_SIZE, 1)
+        # Resize back to original dimensions
+        resized = cv.resize(result, (original_w, original_h), interpolation=cv.INTER_LANCZOS4)
+        # Add channel dimension back if needed
+        resized = np.expand_dims(resized, axis=-1)
+        
+        #if extract_bones:
+        # 원본 이미지도 동일한 크기로 리사이즈
+        original_resized = cv.resize(original_img, (original_w, original_h), interpolation=cv.INTER_LANCZOS4)
+        if len(original_resized.shape) == 2:
+            original_resized = np.expand_dims(original_resized, axis=-1)
+        
+        # bone-only image
+        bone_img = extract_bone_image(original_resized, resized)
+        bone_only.append(bone_img)
+        
+        # boost bone contrast image
+        boost_img = boost_bone_contrast(original_resized, resized)
+        bone_boosted.append(boost_img)
+          
+        resized_suppression.append(resized)
+    
+    return resized_suppression, bone_only, bone_boosted, ids
 
-    return results, ids
+# Extract bone only image
+def extract_bone_image(original_image, suppressed_image, enhance=True, threshold=None):
+    """
+    원본 X-ray 이미지와 bone suppression된 이미지로부터 뼈 구조만을 추출합니다.
+    
+    Parameters:
+    -----------
+    original_image : numpy.ndarray
+        원본 X-ray 이미지 (0-255 범위의 uint8 또는 0-1 범위의 float)
+    suppressed_image : numpy.ndarray
+        Bone이 제거된 이미지 (0-255 범위의 uint8 또는 0-1 범위의 float)
+    enhance : bool, optional
+        대비 향상 적용 여부 (default: True)
+    threshold : float, optional
+        뼈 구조 추출을 위한 임계값 (0-1 사이, default: None)
+    
+    Returns:
+    --------
+    numpy.ndarray
+        추출된 뼈 구조 이미지
+    """
+    # 입력 이미지들을 float32 형식으로 변환하고 0-1 범위로 정규화
+    if original_image.dtype == np.uint8:
+        original_image = original_image.astype(np.float32) / 255.0
+    if suppressed_image.dtype == np.uint8:
+        suppressed_image = suppressed_image.astype(np.float32) / 255.0
+    
+    # 뼈 구조 추출을 위한 차영상 계산
+    bone_image = original_image - suppressed_image
+    
+    # 음수값 제거 (뼈는 항상 밝은 부분이어야 함)
+    bone_image = np.clip(bone_image, 0, 1)
+    
+    if enhance:
+        # CLAHE(Contrast Limited Adaptive Histogram Equalization) 적용
+        if len(bone_image.shape) == 3:
+            bone_image = bone_image[:,:,0]  # 3채널인 경우 첫 번째 채널만 사용
+            
+        clahe = cv.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        bone_image = clahe.apply((bone_image * 255).astype(np.uint8)) / 255.0
+    
+    if threshold is not None:
+        # 임계값 기반 이진화로 뼈 구조를 더 명확하게 구분
+        bone_image = np.where(bone_image > threshold, bone_image, 0)
+    
+    # 노이즈 제거를 위한 가우시안 블러 적용
+    bone_image = cv.GaussianBlur(bone_image, (3,3), 0)
+    
+    # 채널 차원 유지를 위해 shape 확인 후 차원 추가
+    if len(original_image.shape) == 3 and len(bone_image.shape) == 2:
+        bone_image = np.expand_dims(bone_image, axis=-1)
+    
+    return bone_image
+
+# Extract boosted bone image
+def boost_bone_contrast(original_image, suppressed_image, alpha=1.5, beta=0.5, gamma=0.8):
+    """
+    X-ray 이미지에서 뼈 구조를 강조하는 함수입니다.
+    
+    이 함수는 다음과 같은 단계로 뼈를 강조합니다:
+    1. 원본과 suppressed 이미지의 차이로 뼈 마스크를 생성
+    2. 적응형 히스토그램 평활화로 대비를 향상
+    3. 언샤프 마스킹으로 엣지를 강화
+    4. 원본 이미지와 강조된 뼈 구조를 블렌딩
+    
+    Parameters:
+    -----------
+    original_image : numpy.ndarray
+        원본 X-ray 이미지 (0-1 범위의 float 또는 0-255 범위의 uint8)
+    suppressed_image : numpy.ndarray
+        Bone이 제거된 이미지 (0-1 범위의 float 또는 0-255 범위의 uint8)
+    alpha : float
+        뼈 구조 강조 강도 (더 큰 값 = 더 강한 강조, 기본값 1.5)
+    beta : float
+        엣지 강화 강도 (더 큰 값 = 더 선명한 엣지, 기본값 0.5)
+    gamma : float
+        최종 이미지 감마 보정 값 (1보다 작으면 어두운 부분 강조, 기본값 0.8)
+    
+    Returns:
+    --------
+    numpy.ndarray
+        뼈 구조가 강조된 이미지
+    """
+    # 입력 이미지들을 float32 형식으로 변환하고 0-1 범위로 정규화
+    if original_image.dtype == np.uint8:
+        original_image = original_image.astype(np.float32) / 255.0
+    if suppressed_image.dtype == np.uint8:
+        suppressed_image = suppressed_image.astype(np.float32) / 255.0
+        
+    # 채널 차원 처리
+    if len(original_image.shape) == 3:
+        original_image = original_image[:,:,0]
+    if len(suppressed_image.shape) == 3:
+        suppressed_image = suppressed_image[:,:,0]
+    
+    # 1. 뼈 구조 마스크 생성
+    bone_mask = original_image - suppressed_image
+    bone_mask = np.clip(bone_mask, 0, 1)
+    
+    # 2. 적응형 히스토그램 평활화 (CLAHE) 적용
+    clahe = cv.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
+    enhanced = clahe.apply((original_image * 255).astype(np.uint8)) / 255.0
+    
+    # 3. 언샤프 마스킹으로 엣지 강화
+    blur = cv.GaussianBlur(enhanced, (0,0), 3)
+    unsharp_mask = enhanced - blur
+    sharpened = enhanced + beta * unsharp_mask
+    
+    # 4. 뼈 구조 강조
+    # bone_mask를 이용해 뼈 영역에서만 강조 효과 적용
+    boosted = sharpened + alpha * bone_mask
+    
+    # 5. 감마 보정으로 대비 조정
+    boosted = np.power(boosted, gamma)
+    
+    # 6. 값 범위 정규화
+    boosted = np.clip(boosted, 0, 1)
+    
+    # 7. 채널 차원 추가 (if needed)
+    if len(original_image.shape) == 3 or len(suppressed_image.shape) == 3:
+        boosted = np.expand_dims(boosted, axis=-1)
+    
+    return boosted
+
+def eval_results_bone_image(results, bone_images, boosted_images, ids, model_name):
+    os.makedirs(os.path.join("outputs", "external", model_name), exist_ok=True)
+    
+    for i in tqdm(range(0, len(results)), desc='Saving predictions'):
+        cv.imwrite(os.path.join("outputs", "external", model_name, f"{ids[i].split('.')[0]}_predicted.png"), results[i]*255)
+        
+    for i in tqdm(range(0, len(bone_images)), desc='Saving bone extracted images'):
+        cv.imwrite(os.path.join("outputs", "external", model_name, f"{ids[i].split('.')[0]}_bone_extracted.png"), bone_images[i]*255)
+        
+    for i in tqdm(range(0, len(boosted_images)), desc='Saving boost bone contrast images'):
+        cv.imwrite(os.path.join("outputs", "external", model_name, f"{ids[i].split('.')[0]}_bone_boosted.png"), boosted_images[i]*255)
 
 def eval_results(results, ids, model_name):
     os.makedirs(os.path.join("outputs", "external", model_name), exist_ok=True)
@@ -421,7 +592,6 @@ def eval_test_results_woPred(pred_path, target_path, model_name):
 
     workbook.close()
 
-
 initial_lr = 0.001
 epochs = 100
 decay = initial_lr / epochs
@@ -461,10 +631,10 @@ def train_model(model, path, model_name):
     print(f"Training: {len(train_ids)}")
 
     ## Training data generation
-    train_gen = DataGen(train_ids, source_path, image_size=SIZE, batch_size=BATCH_SIZE)
+    train_gen = DataGen(train_ids, source_path, image_size=MODEL_SIZE, batch_size=BATCH_SIZE)
 
     ## Validation data generation
-    valid_gen = DataGen(valid_ids, valid_path, image_size=SIZE, batch_size=BATCH_SIZE)
+    valid_gen = DataGen(valid_ids, valid_path, image_size=MODEL_SIZE, batch_size=BATCH_SIZE)
 
 
     train_steps = len(train_ids) // BATCH_SIZE
@@ -509,10 +679,10 @@ def train_debonet(model, path, model_name):
 
     ## Training data generation
     # The backbones require RGB input
-    train_gen = DataGen(train_ids, source_path, image_size=SIZE, batch_size=BATCH_SIZE, RGB=True)
+    train_gen = DataGen(train_ids, source_path, image_size=MODEL_SIZE, batch_size=BATCH_SIZE, RGB=True)
 
     ## Validation data generation
-    valid_gen = DataGen(valid_ids, valid_path, image_size=SIZE, batch_size=BATCH_SIZE, RGB=True)
+    valid_gen = DataGen(valid_ids, valid_path, image_size=MODEL_SIZE, batch_size=BATCH_SIZE, RGB=True)
 
     ## STEPS
     train_steps = len(train_ids) // BATCH_SIZE
@@ -583,10 +753,10 @@ def train_kalisz(model, path, epochs=300, model_name="KALISZ_AE"):
     print(f"Training: {len(train_ids)}")
 
     ## Training data generation
-    train_gen = DataGen(train_ids, source_path, image_size=SIZE, batch_size=BATCH_SIZE)
+    train_gen = DataGen(train_ids, source_path, image_size=MODEL_SIZE, batch_size=BATCH_SIZE)
 
     ## Validation data generation
-    valid_gen = DataGen(valid_ids, valid_path, image_size=SIZE, batch_size=BATCH_SIZE)
+    valid_gen = DataGen(valid_ids, valid_path, image_size=MODEL_SIZE, batch_size=BATCH_SIZE)
 
     ## Steps
     train_steps = len(train_ids) // BATCH_SIZE

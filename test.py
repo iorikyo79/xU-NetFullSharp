@@ -1,5 +1,5 @@
 import argparse
-from utils import eval_results, test_model, load_model, load_weights, get_flops, compile_model, eval_test_results, eval_test_results_woPred
+from utils import eval_results, test_model, load_model, load_weights, get_flops, compile_model,eval_results_bone_image,  eval_test_results, eval_test_results_woPred
 from models.UNet3P import UNet3P
 from models.UNetPP import UNetPP
 from models.UNet import UNet
@@ -79,11 +79,11 @@ def main(args):
             eval_test_results(model, model_name, path, RGB=False)
     elif args.test_variant == "external":
         if model_name in ["UNET_RES18", "FPN_RES18", "FPN_EF0"]:
-            result, ids = test_model(model, path, RGB=True)
-            eval_results(result, ids, model_name)
+            suppression_images, bone_only, bone_boosted, ids = test_model(model, path, RGB=True)
+            eval_results(suppression_images, ids, model_name)
         else:
-            result, ids = test_model(model, path, RGB=False)
-            eval_results(result, ids, model_name)
+            suppression_images, bone_only, bone_boosted, ids = test_model(model, path, RGB=False)
+            eval_results_bone_image(suppression_images, bone_only, bone_boosted, ids, model_name)
     else:
         raise ValueError(f"Test variant {args.test_variant} is not recognized.")
 
