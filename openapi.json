@@ -1,0 +1,267 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "xU-NetFullSharp Bone Suppression API",
+    "description": "REST API for chest X-ray bone shadow suppression using deep learning models",
+    "version": "1.0.0",
+    "contact": {
+      "name": "xU-NetFullSharp Research Team"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000",
+      "description": "Development server"
+    }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "summary": "Web Interface",
+        "description": "Serves the HTML web interface for interactive image processing",
+        "responses": {
+          "200": {
+            "description": "HTML web interface",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "tags": ["Web Interface"]
+      }
+    },
+    "/get_models": {
+      "get": {
+        "summary": "Get Available Models",
+        "description": "Returns a list of all available bone suppression models with their descriptions",
+        "responses": {
+          "200": {
+            "description": "List of available models",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "models": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Model"
+                      }
+                    }
+                  },
+                  "required": ["models"]
+                },
+                "example": {
+                  "models": [
+                    {
+                      "name": "XUNETFS",
+                      "description": "xU-NetFullSharp - Novel architecture (Our best model)"
+                    },
+                    {
+                      "name": "UNET",
+                      "description": "Standard U-Net - Basic architecture for image segmentation"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": ["Models"]
+      }
+    },
+    "/process_image": {
+      "post": {
+        "summary": "Process Image",
+        "description": "Processes an uploaded chest X-ray image using the specified model to suppress bone shadows",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "image": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Chest X-ray image file (PNG/JPG/JPEG)"
+                  },
+                  "model_name": {
+                    "type": "string",
+                    "description": "Name of the model to use for processing",
+                    "enum": [
+                      "UNET",
+                      "ATT_UNET",
+                      "DEEP_RESUNET",
+                      "UNETPP",
+                      "ATT_UNETPP",
+                      "UNET3P",
+                      "UNET_SHARP",
+                      "XUNETFS",
+                      "ATT_XUNETFS",
+                      "KALISZ_AE",
+                      "UNET_RES18",
+                      "FPN_RES18",
+                      "FPN_EF0"
+                    ]
+                  }
+                },
+                "required": ["image", "model_name"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Processing result (success or error)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProcessingSuccess"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ProcessingError"
+                    }
+                  ]
+                },
+                "examples": {
+                  "success": {
+                    "summary": "Successful processing",
+                    "value": {
+                      "success": true,
+                      "model_name": "XUNETFS",
+                      "model_description": "xU-NetFullSharp - Novel architecture (Our best model)",
+                      "original_image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",
+                      "prediction_image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",
+                      "bone_only_image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",
+                      "original_size": [512, 512],
+                      "message": "Bone shadow suppression completed successfully!"
+                    }
+                  },
+                  "error": {
+                    "summary": "Processing error",
+                    "value": {
+                      "success": false,
+                      "error": "No image uploaded"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": ["Image Processing"]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Model": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Model identifier"
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable model description"
+          }
+        },
+        "required": ["name", "description"]
+      },
+      "ProcessingSuccess": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [true],
+            "description": "Indicates successful processing"
+          },
+          "model_name": {
+            "type": "string",
+            "description": "Name of the model used"
+          },
+          "model_description": {
+            "type": "string",
+            "description": "Description of the model used"
+          },
+          "original_image": {
+            "type": "string",
+            "description": "Base64 encoded original image as data URL"
+          },
+          "prediction_image": {
+            "type": "string",
+            "description": "Base64 encoded bone-suppressed image as data URL"
+          },
+          "bone_only_image": {
+            "type": "string",
+            "description": "Base64 encoded bone-only image as data URL"
+          },
+          "original_size": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "minItems": 2,
+            "maxItems": 2,
+            "description": "Original image dimensions [width, height]"
+          },
+          "message": {
+            "type": "string",
+            "description": "Success message"
+          }
+        },
+        "required": [
+          "success",
+          "model_name",
+          "model_description",
+          "original_image",
+          "prediction_image",
+          "bone_only_image",
+          "original_size",
+          "message"
+        ]
+      },
+      "ProcessingError": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [false],
+            "description": "Indicates processing failure"
+          },
+          "error": {
+            "type": "string",
+            "description": "Error message describing what went wrong"
+          }
+        },
+        "required": ["success", "error"]
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Web Interface",
+      "description": "HTML interface for interactive use"
+    },
+    {
+      "name": "Models",
+      "description": "Operations related to available models"
+    },
+    {
+      "name": "Image Processing",
+      "description": "Bone shadow suppression operations"
+    }
+  ]
+}

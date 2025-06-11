@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chest X-Ray Bone Shadow Suppression</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .workflow-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .workflow-steps {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .step {
+            flex: 1;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+            border-right: 1px solid #e9ecef;
+        }
+
+        .step:last-child {
+            border-right: none;
+        }
+
+        .step.active {
+            background: #007bff;
+            color: white;
+        }
+
+        .step.completed {
+            background: #28a745;
+            color: white;
+        }
+
+        .step-number {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #dee2e6;
+            color: #495057;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .step.active .step-number,
+        .step.completed .step-number {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        .step-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .step-desc {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .upload-section {
+            margin-bottom: 30px;
+        }
+
+        .upload-area {
+            border: 3px dashed #007bff;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f8f9ff;
+        }
+
+        .upload-area:hover {
+            border-color: #0056b3;
+            background: #e6f0ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #28a745;
+            background: #e6f7e6;
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: #007bff;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            font-size: 1.1rem;
+            color: #495057;
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .preview-section {
+            display: none;
+            margin-bottom: 30px;
+        }
+
+        .preview-image {
+            max-width: 300px;
+            max-height: 300px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin: 10px auto;
+            display: block;
+        }
+
+        .model-section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #495057;
+        }
+
+        .model-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .model-card {
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .model-card:hover {
+            border-color: #007bff;
+            box-shadow: 0 4px 15px rgba(0,123,255,0.1);
+        }
+
+        .model-card.selected {
+            border-color: #007bff;
+            background: #e6f0ff;
+        }
+
+        .model-name {
+            font-weight: 600;
+            color: #007bff;
+            margin-bottom: 5px;
+        }
+
+        .model-desc {
+            font-size: 0.9rem;
+            color: #6c757d;
+            line-height: 1.4;
+        }
+
+        .action-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            color: white;
+            box-shadow: 0 4px 15px rgba(0,123,255,0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,123,255,0.4);
+        }
+
+        .btn-primary:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .results-section {
+            display: none;
+            margin-top: 30px;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .result-card {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .result-header {
+            background: #f8f9fa;
+            padding: 15px;
+            font-weight: 600;
+            color: #495057;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .result-image {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e9ecef;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 1px solid #f5c6cb;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 1px solid #c3e6cb;
+        }
+
+        .reset-btn {
+            background: #6c757d;
+            color: white;
+            padding: 8px 20px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-top: 20px;
+        }
+
+        .reset-btn:hover {
+            background: #5a6268;
+        }
+
+        @media (max-width: 768px) {
+            .workflow-steps {
+                flex-direction: column;
+            }
+            
+            .step {
+                border-right: none;
+                border-bottom: 1px solid #e9ecef;
+            }
+            
+            .step:last-child {
+                border-bottom: none;
+            }
+            
+            .model-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🫁 Chest X-Ray Bone Shadow Suppression</h1>
+            <p>Upload your chest X-ray image and select an AI model to suppress bone shadows</p>
+        </div>
+
+        <div class="workflow-container">
+            <div class="workflow-steps">
+                <div class="step active" id="step1">
+                    <div class="step-number">1</div>
+                    <div class="step-title">Upload Image</div>
+                    <div class="step-desc">Select chest X-ray</div>
+                </div>
+                <div class="step" id="step2">
+                    <div class="step-number">2</div>
+                    <div class="step-title">Select Model</div>
+                    <div class="step-desc">Choose AI model</div>
+                </div>
+                <div class="step" id="step3">
+                    <div class="step-number">3</div>
+                    <div class="step-title">Process</div>
+                    <div class="step-desc">Run inference</div>
+                </div>
+                <div class="step" id="step4">
+                    <div class="step-number">4</div>
+                    <div class="step-title">Results</div>
+                    <div class="step-desc">View output</div>
+                </div>
+            </div>
+
+            <div class="content">
+                <!-- Step 1: Upload Image -->
+                <div id="uploadSection" class="upload-section">
+                    <h2 class="section-title">📁 Step 1: Upload Chest X-Ray Image</h2>
+                    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                        <div class="upload-icon">📤</div>
+                        <div class="upload-text">Click to upload or drag and drop</div>
+                        <div class="upload-hint">Supported formats: JPG, PNG, JPEG (Max 10MB)</div>
+                    </div>
+                    <input type="file" id="fileInput" accept="image/*">
+                </div>
+
+                <div id="previewSection" class="preview-section">
+                    <h3>📋 Image Preview</h3>
+                    <img id="previewImage" class="preview-image" alt="Preview">
+                    <div style="text-align: center; margin-top: 10px;">
+                        <span id="imageInfo"></span>
+                    </div>
+                </div>
+
+                <!-- Step 2: Select Model -->
+                <div id="modelSection" class="model-section" style="display: none;">
+                    <h2 class="section-title">🤖 Step 2: Select AI Model</h2>
+                    <div id="modelGrid" class="model-grid">
+                        <!-- Models will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Step 3: Process -->
+                <div id="actionSection" class="action-section" style="display: none;">
+                    <h2 class="section-title">⚡ Step 3: Run Bone Shadow Suppression</h2>
+                    <button id="processBtn" class="btn btn-primary" onclick="processImage()">
+                        🚀 Start Processing
+                    </button>
+                </div>
+
+                <!-- Loading -->
+                <div id="loadingSection" class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Processing your image... This may take a few moments.</p>
+                </div>
+
+                <!-- Step 4: Results -->
+                <div id="resultsSection" class="results-section">
+                    <h2 class="section-title">📊 Step 4: Results</h2>
+                    <div id="messageArea"></div>
+                    <div class="results-grid">
+                        <div class="result-card">
+                            <div class="result-header">📸 Original Image</div>
+                            <img id="originalResult" class="result-image" alt="Original">
+                        </div>
+                        <div class="result-card">
+                            <div class="result-header">✨ Bone Suppressed</div>
+                            <img id="predictionResult" class="result-image" alt="Prediction">
+                        </div>
+                        <div class="result-card">
+                            <div class="result-header">🦴 Bone Shadows Only</div>
+                            <img id="boneOnlyResult" class="result-image" alt="Bone Only">
+                        </div>
+                    </div>
+                    <div style="text-align: center;">
+                        <button class="reset-btn" onclick="resetWorkflow()">🔄 Process Another Image</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedModel = null;
+        let uploadedFile = null;
+        let availableModels = [];
+
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            loadModels();
+        });
+
+        function setupEventListeners() {
+            // File input change
+            document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+
+            // Drag and drop
+            const uploadArea = document.querySelector('.upload-area');
+            uploadArea.addEventListener('dragover', handleDragOver);
+            uploadArea.addEventListener('dragleave', handleDragLeave);
+            uploadArea.addEventListener('drop', handleDrop);
+        }
+
+        function loadModels() {
+            fetch('/get_models')
+                .then(response => response.json())
+                .then(data => {
+                    availableModels = data.models;
+                    displayModels();
+                })
+                .catch(error => {
+                    console.error('Error loading models:', error);
+                    showError('Failed to load available models');
+                });
+        }
+
+        function displayModels() {
+            const modelGrid = document.getElementById('modelGrid');
+            modelGrid.innerHTML = '';
+
+            availableModels.forEach(model => {
+                const modelCard = document.createElement('div');
+                modelCard.className = 'model-card';
+                modelCard.onclick = () => selectModel(model.name, modelCard);
+                
+                modelCard.innerHTML = `
+                    <div class="model-name">${model.name}</div>
+                    <div class="model-desc">${model.description}</div>
+                `;
+                
+                modelGrid.appendChild(modelCard);
+            });
+        }
+
+        function selectModel(modelName, cardElement) {
+            // Remove previous selection
+            document.querySelectorAll('.model-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+
+            // Select current model
+            cardElement.classList.add('selected');
+            selectedModel = modelName;
+
+            // Update workflow
+            updateWorkflowStep(3);
+            document.getElementById('actionSection').style.display = 'block';
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                processFile(file);
+            }
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.currentTarget.classList.add('dragover');
+        }
+
+        function handleDragLeave(event) {
+            event.currentTarget.classList.remove('dragover');
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            event.currentTarget.classList.remove('dragover');
+            
+            const files = event.dataTransfer.files;
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        }
+
+        function processFile(file) {
+            // Validate file
+            if (!file.type.startsWith('image/')) {
+                showError('Please select a valid image file');
+                return;
+            }
+
+            if (file.size > 10 * 1024 * 1024) { // 10MB limit
+                showError('File size must be less than 10MB');
+                return;
+            }
+
+            uploadedFile = file;
+
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('previewImage');
+                preview.src = e.target.result;
+                
+                document.getElementById('previewSection').style.display = 'block';
+                document.getElementById('imageInfo').textContent = 
+                    `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+            };
+            reader.readAsDataURL(file);
+
+            // Update workflow
+            updateWorkflowStep(2);
+            document.getElementById('modelSection').style.display = 'block';
+        }
+
+        function updateWorkflowStep(activeStep) {
+            // Reset all steps
+            for (let i = 1; i <= 4; i++) {
+                const step = document.getElementById(`step${i}`);
+                step.classList.remove('active', 'completed');
+                
+                if (i < activeStep) {
+                    step.classList.add('completed');
+                } else if (i === activeStep) {
+                    step.classList.add('active');
+                }
+            }
+        }
+
+        function processImage() {
+            if (!uploadedFile || !selectedModel) {
+                showError('Please upload an image and select a model first');
+                return;
+            }
+
+            // Update UI
+            document.getElementById('loadingSection').style.display = 'block';
+            document.getElementById('actionSection').style.display = 'none';
+            updateWorkflowStep(4);
+
+            // Prepare form data
+            const formData = new FormData();
+            formData.append('image', uploadedFile);
+            formData.append('model_name', selectedModel);
+
+            // Send request
+            fetch('/process_image', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loadingSection').style.display = 'none';
+                
+                if (data.success) {
+                    displayResults(data);
+                } else {
+                    showError(data.error || 'Processing failed');
+                }
+            })
+            .catch(error => {
+                document.getElementById('loadingSection').style.display = 'none';
+                showError('Network error: ' + error.message);
+            });
+        }
+
+        function displayResults(data) {
+            // Display images
+            document.getElementById('originalResult').src = 'data:image/png;base64,' + data.original_image;
+            document.getElementById('predictionResult').src = 'data:image/png;base64,' + data.prediction_image;
+            document.getElementById('boneOnlyResult').src = 'data:image/png;base64,' + data.bone_only_image;
+
+            // Show success message
+            showSuccess(`✅ ${data.message}<br><strong>Model:</strong> ${data.model_name}<br><strong>Description:</strong> ${data.model_description}`);
+
+            // Show results section
+            document.getElementById('resultsSection').style.display = 'block';
+        }
+
+        function showError(message) {
+            const messageArea = document.getElementById('messageArea');
+            messageArea.innerHTML = `<div class="error-message">❌ ${message}</div>`;
+        }
+
+        function showSuccess(message) {
+            const messageArea = document.getElementById('messageArea');
+            messageArea.innerHTML = `<div class="success-message">${message}</div>`;
+        }
+
+        function resetWorkflow() {
+            // Reset variables
+            selectedModel = null;
+            uploadedFile = null;
+
+            // Reset UI
+            document.getElementById('fileInput').value = '';
+            document.getElementById('previewSection').style.display = 'none';
+            document.getElementById('modelSection').style.display = 'none';
+            document.getElementById('actionSection').style.display = 'none';
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('loadingSection').style.display = 'none';
+            document.getElementById('messageArea').innerHTML = '';
+
+            // Reset model selection
+            document.querySelectorAll('.model-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+
+            // Reset workflow steps
+            updateWorkflowStep(1);
+        }
+    </script>
+</body>
+</html>
