@@ -5,6 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chest X-Ray Bone Shadow Suppression</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+        :root {
+            --bg-color: #121212;
+            --primary-color: #007BFF;
+            --primary-hover: #0056b3;
+            --text-color: #E0E0E0;
+            --text-muted: #A0A0A0;
+            --container-bg: #1E1E1E;
+            --border-color: #333333;
+            --success-color: #28a745;
+            --error-color: #dc3545;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -12,10 +26,10 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
             min-height: 100vh;
-            color: #333;
         }
 
         .container {
@@ -26,67 +40,74 @@
 
         .header {
             text-align: center;
-            margin-bottom: 30px;
-            color: white;
+            margin-bottom: 40px;
         }
 
         .header h1 {
-            font-size: 2.5rem;
+            font-size: 2.8rem;
+            font-weight: 700;
             margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            color: #FFFFFF;
         }
 
         .header p {
             font-size: 1.1rem;
-            opacity: 0.9;
+            color: var(--text-muted);
         }
 
         .workflow-container {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            background: var(--container-bg);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-color);
             overflow: hidden;
         }
 
         .workflow-steps {
             display: flex;
-            background: #f8f9fa;
-            border-bottom: 1px solid #e9ecef;
+            background: rgba(0,0,0,0.2);
+            border-bottom: 1px solid var(--border-color);
         }
 
         .step {
             flex: 1;
-            padding: 20px;
+            padding: 15px;
             text-align: center;
             position: relative;
-            border-right: 1px solid #e9ecef;
+            border-right: 1px solid var(--border-color);
+            transition: background-color 0.3s;
         }
 
         .step:last-child {
             border-right: none;
         }
-
+        
         .step.active {
-            background: #007bff;
-            color: white;
+            background-color: var(--primary-color);
         }
 
         .step.completed {
-            background: #28a745;
-            color: white;
+            background-color: var(--success-color);
+        }
+        
+        .step.active .step-title, .step.completed .step-title,
+        .step.active .step-desc, .step.completed .step-desc {
+            color: #FFFFFF;
         }
 
         .step-number {
-            width: 30px;
-            height: 30px;
+            width: 24px;
+            height: 24px;
             border-radius: 50%;
-            background: #dee2e6;
-            color: #495057;
+            background: var(--border-color);
+            color: var(--text-color);
             display: inline-flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
+            transition: background-color 0.3s, color 0.3s;
+            font-size: 0.8rem;
         }
 
         .step.active .step-number,
@@ -97,16 +118,17 @@
 
         .step-title {
             font-weight: 600;
-            margin-bottom: 5px;
+            margin-bottom: 4px;
+            font-size: 0.9rem;
         }
 
         .step-desc {
-            font-size: 0.9rem;
-            opacity: 0.8;
+            font-size: 0.8rem;
+            color: var(--text-muted);
         }
 
         .content {
-            padding: 30px;
+            padding: 40px;
         }
 
         .upload-section {
@@ -114,40 +136,35 @@
         }
 
         .upload-area {
-            border: 3px dashed #007bff;
-            border-radius: 10px;
-            padding: 40px;
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 25px;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s ease;
-            background: #f8f9ff;
+            background-color: rgba(0,0,0,0.1);
         }
 
-        .upload-area:hover {
-            border-color: #0056b3;
-            background: #e6f0ff;
-        }
-
-        .upload-area.dragover {
-            border-color: #28a745;
-            background: #e6f7e6;
+        .upload-area:hover, .upload-area.dragover {
+            border-color: var(--primary-color);
+            background-color: rgba(0, 123, 255, 0.1);
         }
 
         .upload-icon {
-            font-size: 3rem;
-            color: #007bff;
-            margin-bottom: 15px;
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            margin-bottom: 10px;
         }
 
         .upload-text {
             font-size: 1.1rem;
-            color: #495057;
+            color: var(--text-color);
             margin-bottom: 10px;
         }
 
         .upload-hint {
             font-size: 0.9rem;
-            color: #6c757d;
+            color: var(--text-muted);
         }
 
         #fileInput {
@@ -157,13 +174,19 @@
         .preview-section {
             display: none;
             margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .preview-section h3 {
+            margin-bottom: 15px;
+            font-size: 1.5rem;
         }
 
         .preview-image {
             max-width: 300px;
             max-height: 300px;
             border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border: 1px solid var(--border-color);
             margin: 10px auto;
             display: block;
         }
@@ -173,48 +196,50 @@
         }
 
         .section-title {
-            font-size: 1.3rem;
+            font-size: 1.5rem;
             font-weight: 600;
-            margin-bottom: 15px;
-            color: #495057;
+            margin-bottom: 20px;
+            color: var(--text-color);
         }
 
         .model-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 15px;
+            gap: 20px;
             margin-bottom: 20px;
         }
 
         .model-card {
-            border: 2px solid #e9ecef;
-            border-radius: 10px;
-            padding: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
             cursor: pointer;
             transition: all 0.3s ease;
-            background: white;
+            background: rgba(255,255,255,0.05);
         }
 
         .model-card:hover {
-            border-color: #007bff;
-            box-shadow: 0 4px 15px rgba(0,123,255,0.1);
+            border-color: var(--primary-color);
+            transform: translateY(-5px);
         }
 
         .model-card.selected {
-            border-color: #007bff;
-            background: #e6f0ff;
+            border-color: var(--primary-color);
+            background: rgba(0, 123, 255, 0.1);
+            box-shadow: 0 0 15px rgba(0, 123, 255, 0.3);
         }
 
         .model-name {
             font-weight: 600;
-            color: #007bff;
-            margin-bottom: 5px;
+            color: var(--primary-color);
+            margin-bottom: 8px;
+            font-size: 1.1rem;
         }
 
         .model-desc {
             font-size: 0.9rem;
-            color: #6c757d;
-            line-height: 1.4;
+            color: var(--text-muted);
+            line-height: 1.5;
         }
 
         .action-section {
@@ -223,30 +248,32 @@
         }
 
         .btn {
-            padding: 12px 30px;
+            padding: 14px 35px;
             border: none;
-            border-radius: 25px;
+            border-radius: 50px;
             font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 1px;
         }
 
         .btn-primary {
-            background: linear-gradient(45deg, #007bff, #0056b3);
+            background: var(--primary-color);
             color: white;
-            box-shadow: 0 4px 15px rgba(0,123,255,0.3);
+            box-shadow: 0 4px 20px rgba(0, 123, 255, 0.3);
         }
 
         .btn-primary:hover {
+            background: var(--primary-hover);
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0,123,255,0.4);
+            box-shadow: 0 6px 25px rgba(0, 123, 255, 0.4);
         }
 
         .btn-primary:disabled {
-            background: #6c757d;
+            background: #555;
+            color: #888;
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
@@ -254,34 +281,40 @@
 
         .results-section {
             display: none;
-            margin-top: 30px;
+            margin-top: 40px;
         }
 
         .results-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
+            gap: 25px;
             margin-top: 20px;
         }
 
         .result-card {
-            background: white;
-            border-radius: 10px;
+            background: var(--container-bg);
+            border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border: 1px solid var(--border-color);
+            transition: transform 0.3s;
+        }
+        
+        .result-card:hover {
+            transform: translateY(-5px);
         }
 
         .result-header {
-            background: #f8f9fa;
+            background: rgba(0,0,0,0.2);
             padding: 15px;
             font-weight: 600;
-            color: #495057;
-            border-bottom: 1px solid #e9ecef;
+            color: var(--text-color);
+            border-bottom: 1px solid var(--border-color);
         }
 
         .result-image {
             width: 100%;
-            height: 250px;
+            height: auto;
+            aspect-ratio: 1 / 1;
             object-fit: cover;
         }
 
@@ -294,8 +327,8 @@
         .loading-spinner {
             width: 50px;
             height: 50px;
-            border: 4px solid #e9ecef;
-            border-top: 4px solid #007bff;
+            border: 4px solid var(--border-color);
+            border-top: 4px solid var(--primary-color);
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin: 0 auto 20px;
@@ -306,33 +339,38 @@
             100% { transform: rotate(360deg); }
         }
 
-        .error-message {
-            background: #f8d7da;
-            color: #721c24;
+        .message-area {
+            margin: 20px 0;
+        }
+
+        .error-message, .success-message {
             padding: 15px;
             border-radius: 10px;
-            margin: 20px 0;
-            border: 1px solid #f5c6cb;
+            border: 1px solid;
+        }
+
+        .error-message {
+            background: rgba(220, 53, 69, 0.1);
+            color: #f8d7da;
+            border-color: var(--error-color);
         }
 
         .success-message {
-            background: #d4edda;
-            color: #155724;
-            padding: 15px;
-            border-radius: 10px;
-            margin: 20px 0;
-            border: 1px solid #c3e6cb;
+            background: rgba(40, 167, 69, 0.1);
+            color: #d4edda;
+            border-color: var(--success-color);
         }
 
         .reset-btn {
             background: #6c757d;
             color: white;
-            padding: 8px 20px;
+            padding: 10px 25px;
             border: none;
-            border-radius: 20px;
+            border-radius: 25px;
             cursor: pointer;
             font-size: 0.9rem;
-            margin-top: 20px;
+            margin-top: 30px;
+            transition: background-color 0.3s;
         }
 
         .reset-btn:hover {
@@ -346,19 +384,19 @@
             
             .step {
                 border-right: none;
-                border-bottom: 1px solid #e9ecef;
+                border-bottom: 1px solid var(--border-color);
             }
             
             .step:last-child {
                 border-bottom: none;
             }
             
-            .model-grid {
+            .model-grid, .results-grid {
                 grid-template-columns: 1fr;
             }
             
-            .results-grid {
-                grid-template-columns: 1fr;
+            .content {
+                padding: 20px;
             }
         }
     </style>
@@ -366,7 +404,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🫁 Chest X-Ray Bone Shadow Suppression</h1>
+            <h2>🫁 Chest X-Ray Bone Shadow Suppression</h2>
             <p>Upload your chest X-ray image and select an AI model to suppress bone shadows</p>
         </div>
 
@@ -471,6 +509,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             setupEventListeners();
             loadModels();
+            showStep(1);
         });
 
         function setupEventListeners() {
@@ -526,8 +565,7 @@
             selectedModel = modelName;
 
             // Update workflow
-            updateWorkflowStep(3);
-            document.getElementById('actionSection').style.display = 'block';
+            showStep(3);
         }
 
         function handleFileSelect(event) {
@@ -576,15 +614,41 @@
                 const preview = document.getElementById('previewImage');
                 preview.src = e.target.result;
                 
-                document.getElementById('previewSection').style.display = 'block';
                 document.getElementById('imageInfo').textContent = 
                     `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
             };
             reader.readAsDataURL(file);
 
             // Update workflow
-            updateWorkflowStep(2);
-            document.getElementById('modelSection').style.display = 'block';
+            showStep(2);
+        }
+
+        function showStep(stepNumber) {
+            // Hide all sections
+            document.getElementById('uploadSection').style.display = 'none';
+            document.getElementById('previewSection').style.display = 'none';
+            document.getElementById('modelSection').style.display = 'none';
+            document.getElementById('actionSection').style.display = 'none';
+            document.getElementById('loadingSection').style.display = 'none';
+            document.getElementById('resultsSection').style.display = 'none';
+
+            // Show the correct section for the step
+            if (stepNumber === 1) {
+                document.getElementById('uploadSection').style.display = 'block';
+            } else if (stepNumber === 2) {
+                document.getElementById('previewSection').style.display = 'block';
+                document.getElementById('modelSection').style.display = 'block';
+            } else if (stepNumber === 3) {
+                document.getElementById('previewSection').style.display = 'block';
+                document.getElementById('modelSection').style.display = 'block';
+                document.getElementById('actionSection').style.display = 'block';
+            } else if (stepNumber === 4) {
+                document.getElementById('loadingSection').style.display = 'block';
+            } else if (stepNumber === 5) {
+                document.getElementById('resultsSection').style.display = 'block';
+            }
+
+            updateWorkflowStep(stepNumber > 4 ? 4 : stepNumber);
         }
 
         function updateWorkflowStep(activeStep) {
@@ -608,9 +672,7 @@
             }
 
             // Update UI
-            document.getElementById('loadingSection').style.display = 'block';
-            document.getElementById('actionSection').style.display = 'none';
-            updateWorkflowStep(4);
+            showStep(4);
 
             // Prepare form data
             const formData = new FormData();
@@ -648,7 +710,7 @@
             showSuccess(`✅ ${data.message}<br><strong>Model:</strong> ${data.model_name}<br><strong>Description:</strong> ${data.model_description}`);
 
             // Show results section
-            document.getElementById('resultsSection').style.display = 'block';
+            showStep(5);
         }
 
         function showError(message) {
@@ -668,11 +730,6 @@
 
             // Reset UI
             document.getElementById('fileInput').value = '';
-            document.getElementById('previewSection').style.display = 'none';
-            document.getElementById('modelSection').style.display = 'none';
-            document.getElementById('actionSection').style.display = 'none';
-            document.getElementById('resultsSection').style.display = 'none';
-            document.getElementById('loadingSection').style.display = 'none';
             document.getElementById('messageArea').innerHTML = '';
 
             // Reset model selection
@@ -681,7 +738,7 @@
             });
 
             // Reset workflow steps
-            updateWorkflowStep(1);
+            showStep(1);
         }
     </script>
 </body>
