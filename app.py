@@ -37,19 +37,20 @@ with open("weights_mapping.json", "r") as file:
 
 # Model descriptions for better user understanding
 MODEL_DESCRIPTIONS = {
-    "UNET": "Standard U-Net - Basic architecture for image segmentation",
-    "ATT_UNET": "Attention U-Net - U-Net with attention mechanisms",
-    "DEEP_RESUNET": "Deep Residual U-Net - U-Net with residual connections",
-    "UNETPP": "U-Net++ - Nested U-Net architecture",
-    "ATT_UNETPP": "Attention U-Net++ - U-Net++ with attention mechanisms",
-    "UNET3P": "U-Net3+ - Full-scale connected U-Net",
-    "UNET_SHARP": "U-Net# - U-Net with redesigned skip connections",
-    "XUNETFS": "xU-NetFullSharp - Novel architecture (Our best model)",
-    "ATT_XUNETFS": "Attention xU-NetFullSharp - xU-NetFullSharp with attention",
-    "KALISZ_AE": "Kalisz-Marczyk Autoencoder - Alternative architecture",
-    "UNET_RES18": "U-Net ResNet-18 - U-Net with ResNet backbone",
-    "FPN_RES18": "FPN ResNet-18 - Feature Pyramid Network with ResNet",
-    "FPN_EF0": "FPN EfficientNet-B0 - Feature Pyramid Network with EfficientNet"
+    "XUNETFS": "xU-NetFullSharp - Novel architecture (best model)",
+    # "UNET": "Standard U-Net - Basic architecture for image segmentation",
+    # "ATT_UNET": "Attention U-Net - U-Net with attention mechanisms",
+    # "DEEP_RESUNET": "Deep Residual U-Net - U-Net with residual connections",
+    # "UNETPP": "U-Net++ - Nested U-Net architecture",
+    # "ATT_UNETPP": "Attention U-Net++ - U-Net++ with attention mechanisms",
+    # "UNET3P": "U-Net3+ - Full-scale connected U-Net",
+    # "UNET_SHARP": "U-Net# - U-Net with redesigned skip connections",
+    # "XUNETFS": "xU-NetFullSharp - Novel architecture (Our best model)",
+    # "ATT_XUNETFS": "Attention xU-NetFullSharp - xU-NetFullSharp with attention",
+    # "KALISZ_AE": "Kalisz-Marczyk Autoencoder - Alternative architecture",
+    # "UNET_RES18": "U-Net ResNet-18 - U-Net with ResNet backbone",
+    # "FPN_RES18": "FPN ResNet-18 - Feature Pyramid Network with ResNet",
+    # "FPN_EF0": "FPN EfficientNet-B0 - Feature Pyramid Network with EfficientNet"
 }
 
 # Function to get weights path by model name
@@ -224,7 +225,7 @@ def process_image():
         original_np = np.array(image) / 255.0
         prediction_resized_np = np.array(prediction_image) / 255.0
         bone_only_np = np.clip(original_np - prediction_resized_np, 0, 1)
-        bone_only_image = Image.fromarray((bone_only_np * 255).astype(np.uint8))
+        bone_only_image = Image.fromarray((bone_only_np * 255).astype(np.uint8)*5)
         
         bone_only_buffer = BytesIO()
         bone_only_image.save(bone_only_buffer, format="PNG")
