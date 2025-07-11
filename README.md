@@ -16,20 +16,192 @@ In this [paper](https://www.sciencedirect.com/science/article/pii/S1746809424010
   
 ## Quick Start Python Guide
 
-This guide provides an overview of setting up and testing bone suppression models using Conda and Python scripts.
+This guide provides an overview of setting up and testing bone suppression models using uv and Python scripts.
+
+### 🚀 Quick Start - Web Application
+
+For the fastest way to get started with bone shadow suppression:
+
+```bash
+# Clone the repository
+git clone https://github.com/xKev1n/xU-NetFullSharp.git
+cd xU-NetFullSharp
+
+# Install dependencies with uv (recommended)
+uv pip install -r requirements.txt
+
+# Start the web application
+uv run python app.py
+```
+
+Then open your browser to http://127.0.0.1:5000 to use the interactive web interface.
 
 ### Environment Setup
 
-To create the Conda environment with necessary dependencies, run:
+#### ⚠️ Python Version Compatibility
 
+**Important**: This project requires **Python 3.8-3.10** due to TensorFlow 2.10 compatibility limitations. Python 3.11+ is not supported.
+
+Check your Python version:
 ```bash
-conda env create -f environment.yml
+python --version
 ```
 
-After creating the environment, activate it by executing:
+If you're using Python 3.11+, you have several options:
+
+1. **Install compatible Python version with uv**:
+   ```bash
+   # Install Python 3.10 (recommended)
+   uv python install 3.10
+   
+   # Create virtual environment with Python 3.10
+   uv venv --python 3.10
+   ```
+
+2. **Use system Python 3.8-3.10** if available:
+   ```bash
+   # Check available Python versions
+   ls /usr/bin/python*
+   
+   # Create virtual environment with specific Python version
+   uv venv --python python3.10  # or python3.9, python3.8
+   ```
+
+#### Option 1: Using uv's Project-Based Workflow (Recommended)
+
+For new projects, initialize a uv project and install dependencies:
 
 ```bash
-conda activate bone_suppression
+# Initialize a uv project with Python 3.10
+uv init --app --python 3.10
+
+# Install dependencies from requirements.txt
+uv add $(cat requirements.txt | tr '\n' ' ')
+
+# Run scripts with uv (automatically manages the virtual environment)
+uv run python test.py --model_name UNET --test_variant external --data_path ./data/test
+```
+
+#### Option 2: Using uv's pip-like Interface (Legacy)
+
+For existing projects with requirements.txt, create a virtual environment and install dependencies:
+
+```bash
+# Create virtual environment with Python 3.10
+uv venv --python 3.10
+
+# Install dependencies
+uv pip install -r requirements.txt
+
+# Activate environment (optional - uv run can be used instead)
+source .venv/bin/activate
+```
+
+**Note**: With uv, you can skip manual activation and use `uv run` to execute commands in the virtual environment automatically.
+
+### Why Use uv?
+
+uv is an extremely fast Python package manager written in Rust that offers:
+
+- **10-100x faster** than pip for package installation
+- **Automatic virtual environment management** with `uv run`
+- **Consistent dependency resolution** across different environments
+- **Built-in Python version management**
+- **Project-based workflow** for better dependency management
+
+### Additional uv Commands
+
+```bash
+# Check installed packages
+uv pip list
+
+# Update all packages
+uv pip install --upgrade -r requirements.txt
+
+# Run any Python command in the virtual environment
+uv run python -c "import tensorflow as tf; print(tf.__version__)"
+
+# Install additional packages
+uv pip install matplotlib
+
+# Export current environment
+uv pip freeze > requirements-lock.txt
+```
+
+### Troubleshooting
+
+#### TensorFlow Installation Issues
+
+If you encounter TensorFlow installation errors:
+
+1. **Python Version Compatibility**: Ensure you're using Python 3.8-3.10
+   ```bash
+   python --version  # Should show 3.8.x, 3.9.x, or 3.10.x
+   ```
+
+2. **Install specific TensorFlow version**:
+   ```bash
+   # For Python 3.10
+   uv pip install tensorflow==2.15.0
+   
+   # For Python 3.8-3.9
+   uv pip install tensorflow==2.10.0
+   ```
+
+3. **Check available Python versions**:
+   ```bash
+   uv python list  # List installed Python versions
+   uv python install 3.10  # Install Python 3.10 if needed
+   ```
+
+#### Common Error Messages
+
+- **"Distribution tensorflow can't be installed"**: Use Python 3.8-3.10 instead of 3.11+
+- **"No matching distribution found"**: Check your Python version and use compatible TensorFlow version
+- **CUDA/GPU issues**: This project works with CPU-only TensorFlow. For GPU support, install `tensorflow-gpu` instead
+
+#### EfficientNet Compatibility Issues
+
+If you encounter errors related to `keras.utils.generic_utils` when running the application:
+
+```bash
+AttributeError: module 'keras.utils' has no attribute 'generic_utils'
+```
+
+This is due to EfficientNet version compatibility with newer Keras versions. The fix is included in the updated requirements.txt, but if you encounter this issue:
+
+```bash
+# Update EfficientNet to the latest compatible version
+uv pip install "efficientnet>=1.1.1"
+```
+
+### Web Application
+
+The project includes a Flask web application (`app.py`) for easy interactive bone shadow suppression. To run the web interface:
+
+```bash
+# Start the Flask web application
+uv run python app.py
+```
+
+The web application will be available at:
+- **Local access**: http://127.0.0.1:5000
+- **Network access**: http://[your-ip]:5000
+
+#### Web Application Features
+
+- **Model Selection**: Choose from all available models (U-Net, U-Net++, xU-NetFullSharp, etc.)
+- **Image Upload**: Upload chest X-ray images for bone shadow suppression
+- **Real-time Processing**: Get processed images with bone shadows suppressed
+- **Download Results**: Download the processed images
+- **Model Comparison**: Compare results from different models side-by-side
+
+#### Web Application Requirements
+
+The web application requires Flask, which is automatically installed with the project dependencies. Make sure all dependencies are installed:
+
+```bash
+uv pip install -r requirements.txt
 ```
 
 ### Testing Models on Datasets
@@ -37,6 +209,10 @@ conda activate bone_suppression
 You can test individual models on either internal or external datasets. To do this, use the `test.py` script with the following command:
 
 ```bash
+# Using uv run (recommended - automatically manages environment)
+uv run python test.py --model_name <desired_model> --test_variant <external | internal> --data_path <path_to_desired_dataset>
+
+# Or with activated environment
 python test.py --model_name <desired_model> --test_variant <external | internal> --data_path <path_to_desired_dataset>
 ```
 
@@ -65,12 +241,20 @@ python test.py --model_name <desired_model> --test_variant <external | internal>
 To train models, use the `train.py` script:
 
 ```bash
+# Using uv run (recommended)
+uv run python train.py --model_name <desired_model> --data_path <dataset_directory>
+
+# Or with activated environment
 python train.py --model_name <desired_model> --data_path <dataset_directory>
 ```
 
 If you want to initialize the model with pre-trained weights, include the `--weights_path` argument:
 
 ```bash
+# Using uv run (recommended)
+uv run python train.py --model_name <desired_model> --data_path <dataset_directory> --weights_path <weights_path>
+
+# Or with activated environment
 python train.py --model_name <desired_model> --data_path <dataset_directory> --weights_path <weights_path>
 ```
 
@@ -79,6 +263,32 @@ The `dataset_directory` should contain subdirectories named `train` and `val`. B
 ## Downloads
 
 - [Pretrained model weights](https://vutbr-my.sharepoint.com/:u:/g/personal/burgetrm_vutbr_cz/EaxYf0RZYCVClFDVpvfqdtsBL1DUV0B81pE1Hy_C1W7bOg?e=buBH8N)
+
+## Dependencies
+
+The project has been tested and updated with the following key dependencies:
+
+- **Python**: 3.8-3.10 (required for TensorFlow 2.10+ compatibility)
+- **TensorFlow**: 2.10+ (with broader compatibility range)
+- **Keras**: 2.15.0 (latest compatible version)
+- **EfficientNet**: 1.1.1+ (for Keras 2.15+ compatibility)
+- **NumPy**: <2.0 (for TensorFlow compatibility)
+- **OpenCV**: Latest compatible version
+- **Segmentation Models**: Latest version
+- **Flask**: For web application interface
+
+All dependencies are automatically managed through `requirements.txt` and uv package manager.
+
+## Recent Updates
+
+### Version 2025.01 Updates
+
+- **Fixed EfficientNet compatibility**: Updated to version 1.1.1+ to resolve `keras.utils.generic_utils` errors
+- **Enhanced uv support**: Added comprehensive uv workflow documentation
+- **Improved error handling**: Added detailed troubleshooting for common dependency issues
+- **Web application**: Added Flask-based web interface for easy model interaction
+- **Python version management**: Added explicit Python 3.8-3.10 compatibility warnings
+- **Dependency optimization**: Updated TensorFlow version range for broader compatibility
 
 ## License
 

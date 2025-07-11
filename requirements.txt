@@ -1,0 +1,8 @@
+numpy<2
+tensorflow>=2.10,<2.16  # For broader Python compatibility
+opencv-python
+xlsxwriter
+tqdm
+sewar
+segmentation-models
+efficientnet>=1.1.1  # For Keras 2.15+ compatibility

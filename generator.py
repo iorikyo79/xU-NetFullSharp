@@ -20,7 +20,7 @@ def preprocess_image(image):
 
 ## DATA GENERATOR
 
-class DataGen(keras.utils.data_utils.Sequence):
+class DataGen(keras.utils.Sequence):
     def __init__(self, ids, path, batch_size=BATCH_SIZE, image_size=IMAGE_SIZE, RGB=False):
         self.ids = ids
         self.path = path
